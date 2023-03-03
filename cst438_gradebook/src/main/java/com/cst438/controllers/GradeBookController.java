@@ -1,13 +1,17 @@
 package com.cst438.controllers;
 
+import java.sql.Date;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -17,6 +21,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.cst438.domain.Assignment;
 import com.cst438.domain.AssignmentListDTO;
+import com.cst438.domain.AssignmentListDTO.AssignmentDTO;
 import com.cst438.domain.AssignmentGrade;
 import com.cst438.domain.AssignmentGradeRepository;
 import com.cst438.domain.AssignmentRepository;
@@ -123,6 +128,57 @@ public class GradeBookController {
 		
 		registrationService.sendFinalGrades(course_id, cdto);
 	}
+//// add assignment 
+	
+	@PostMapping("/assignment/add/{id}") // course id
+ 	@Transactional
+ 	public void addAssignment (@RequestBody AssignmentListDTO.AssignmentDTO assignment, @PathVariable("id") Integer courseId ) 
+	{
+		
+ 		String instructor = "dwisneski@csumb.edu";
+ 		
+ 		
+ 		Assignment userAssignment = new Assignment();
+ 		userAssignment.setId(assignment.assignmentId);
+ 		userAssignment.setName(assignment.assignmentName);
+ 		Date date = Date.valueOf(assignment.dueDate);
+ 		userAssignment.setDueDate(date);
+ 		System.out.printf("date=%s\n", date);
+ 		userAssignment.setNeedsGrading(assignment.needsGrading);
+
+ 		var courseId2 = courseRepository.findById(courseId);
+ 		if(courseId2.isPresent())
+ 		{
+ 			Course c = courseRepository.findById(courseId).orElse(null);
+ 			if (!c.getInstructor().equals(instructor)) {
+ 				throw new ResponseStatusException( HttpStatus.UNAUTHORIZED, "Not Authorized. " );
+ 			}
+ 			userAssignment.setCourse(courseId2.get());
+ 			assignmentRepository.save(userAssignment);
+ 		}
+ 		else
+ 		{
+ 			throw new ResponseStatusException( HttpStatus.BAD_REQUEST, "Course does not exist");
+ 		}
+ 	}
+	
+
+//// delete assignment 
+	@DeleteMapping("/assignment/delete/{id}")
+	@Transactional
+	public void deleteAssignment(@PathVariable("id") Integer assignmentId ) 
+	{ 
+		String email = "dwisneski@csumb.edu";  // user name (should be instructor's email) 
+		checkAssignment(assignmentId, email);  // check that user name matches instructor email of the course.
+	    Assignment assign = assignmentRepository.findById(assignmentId)
+	                                            .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid assignment id."));
+	    if (assign.getNeedsGrading() == 0) 
+	    {
+	        throw  new ResponseStatusException( HttpStatus.BAD_REQUEST, "Assignment has grades");
+	    }
+	    assignmentRepository.delete(assign);
+	}
+
 	
 	private String letterGrade(double grade) {
 		if (grade >= 90) return "A";
@@ -131,6 +187,25 @@ public class GradeBookController {
 		if (grade >= 60) return "D";
 		return "F";
 	}
+	
+//// update assignment name
+
+	@PutMapping("/assignment/update/{id}")
+ 	@Transactional
+ 	public void updateAssignment( @RequestBody AssignmentListDTO.AssignmentDTO assignment,@PathVariable("id") Integer assignmentId ) 
+ 	{
+
+ 		String email = "dwisneski@csumb.edu";  
+ 		checkAssignment(assignmentId, email);  
+ 		Assignment a = assignmentRepository.findById(assignmentId).orElse(null);
+ 		if (a == null) {
+ 			throw new ResponseStatusException( HttpStatus.BAD_REQUEST, "Invalid assignment primary key.");
+ 		}
+ 		a.setName(assignment.assignmentName);
+ 		System.out.printf("%s\n", a.toString());
+ 		assignmentRepository.save(a);
+
+ 	}
 	
 	@PutMapping("/gradebook/{id}")
 	@Transactional

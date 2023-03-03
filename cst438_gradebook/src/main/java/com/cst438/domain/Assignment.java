@@ -29,6 +29,7 @@ public class Assignment {
 	private Date dueDate;
 	private int needsGrading;  // 0 = false,  1= true (past due date and not all students have grades)
 	
+	
 	public int getId() {
 		return id;
 	}

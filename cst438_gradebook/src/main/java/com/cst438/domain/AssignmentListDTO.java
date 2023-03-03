@@ -12,7 +12,9 @@ public class AssignmentListDTO {
 		public String assignmentName;
 		public String dueDate;
 		public String courseTitle;
+		public int needsGrading;
 		public int courseId;
+		
 
 		public AssignmentDTO(int assignmentId, int courseId, String assignmentName, String dueDate,
 				String courseTitle) {
@@ -22,6 +24,14 @@ public class AssignmentListDTO {
 			this.dueDate = dueDate;
 			this.courseTitle = courseTitle;
 		}
+		public AssignmentDTO() {
+ 			assignmentId = 0;
+ 			assignmentName = null;
+ 			dueDate = null;
+ 			courseTitle = null;
+ 			needsGrading = 1;
+ 			courseId = 0;
+ 		}
 
 		@Override
 		public String toString() {
