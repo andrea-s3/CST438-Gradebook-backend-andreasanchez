@@ -11,6 +11,8 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.RequestBuilder;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 
 import static org.mockito.BDDMockito.given;
@@ -18,11 +20,11 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import java.util.Optional;
-
 import com.cst438.controllers.GradeBookController;
 import com.cst438.domain.Assignment;
 import com.cst438.domain.AssignmentGrade;
 import com.cst438.domain.AssignmentGradeRepository;
+import com.cst438.domain.AssignmentListDTO.AssignmentDTO;
 import com.cst438.domain.AssignmentRepository;
 import com.cst438.domain.Course;
 import com.cst438.domain.CourseRepository;
@@ -202,7 +204,6 @@ public class JunitTestGradebook {
 		given(assignmentGradeRepository.findById(1)).willReturn(Optional.of(ag));
 
 		// end of mock data
-
 		// then do an http get request for assignment 1
 		response = mvc.perform(MockMvcRequestBuilders.get("/gradebook/1").accept(MediaType.APPLICATION_JSON))
 				.andReturn().getResponse();
@@ -242,7 +243,125 @@ public class JunitTestGradebook {
 		updatedag.setScore("88");
 		verify(assignmentGradeRepository, times(1)).save(updatedag);
 	}
+	/// add assignment
+	@Test
+	public void addAssignment() throws Exception {
+		
+		MockHttpServletResponse response;
+		// mock database data
+		Course course = new Course();
+		course.setCourse_id(TEST_COURSE_ID);
+		course.setSemester(TEST_SEMESTER);
+		course.setYear(TEST_YEAR);
+		course.setInstructor(TEST_INSTRUCTOR_EMAIL);
+		course.setEnrollments(new java.util.ArrayList<Enrollment>());
+		course.setAssignments(new java.util.ArrayList<Assignment>());
 
+		Enrollment enrollment = new Enrollment();
+		enrollment.setCourse(course);
+		course.getEnrollments().add(enrollment);
+		enrollment.setId(TEST_COURSE_ID);
+		enrollment.setStudentEmail(TEST_STUDENT_EMAIL);
+		enrollment.setStudentName(TEST_STUDENT_NAME);
+
+		Assignment assignment = new Assignment();
+		assignment.setCourse(course);
+		course.getAssignments().add(assignment);
+		// set dueDate to 1 week before now.
+		assignment.setDueDate(new java.sql.Date(System.currentTimeMillis() - 7 * 24 * 60 * 60 * 1000));
+		assignment.setId(1);
+		assignment.setName("Assignment 1");
+		assignment.setNeedsGrading(1);
+
+		AssignmentGrade ag = new AssignmentGrade();
+		ag.setAssignment(assignment);
+		ag.setId(1);
+		ag.setScore("");
+		ag.setStudentEnrollment(enrollment);
+
+		// given -- stubs for database repositories that return test data
+		given(assignmentRepository.save(any())).willReturn(assignment);
+		given(courseRepository.save(any())).willReturn(course);
+		given(courseRepository.findById(TEST_COURSE_ID)).willReturn(Optional.of(course));
+		
+		// then do an http post request for adding new assignment
+		response = (MockHttpServletResponse) mvc.perform((RequestBuilder) ((ResultActions) MockMvcRequestBuilders.post("/gradebook/add" + TEST_COURSE_ID)
+				.accept(MediaType.APPLICATION_JSON)).andReturn().getResponse());
+
+		// verify response is okay
+		assertEquals(200, response.getStatus());
+
+		// verify that a save was called on assignment repository
+		verify(assignmentRepository, times(1)).save(any());
+	}
+	
+	//// update name
+	@Test
+	public void changeAssignmentName() throws Exception {
+
+		MockHttpServletResponse response;
+		// mock database data
+		Course course = new Course();
+		course.setCourse_id(TEST_COURSE_ID);
+		course.setSemester(TEST_SEMESTER);
+		course.setYear(TEST_YEAR);
+		course.setInstructor(TEST_INSTRUCTOR_EMAIL);
+		course.setEnrollments(new java.util.ArrayList<Enrollment>());
+		course.setAssignments(new java.util.ArrayList<Assignment>());
+
+		Enrollment enrollment = new Enrollment();
+		enrollment.setCourse(course);
+		course.getEnrollments().add(enrollment);
+		enrollment.setId(TEST_COURSE_ID);
+		enrollment.setStudentEmail(TEST_STUDENT_EMAIL);
+		enrollment.setStudentName(TEST_STUDENT_NAME);
+
+		Assignment assignment = new Assignment();
+		assignment.setCourse(course);
+		course.getAssignments().add(assignment);
+		// set dueDate to 1 week before now.
+		assignment.setDueDate(new java.sql.Date(System.currentTimeMillis() - 7 * 24 * 60 * 60 * 1000));
+		assignment.setId(1);
+		assignment.setName("Assignment 1");
+		assignment.setNeedsGrading(1);
+
+		// given -- stubs for database repositories that return test data
+		given(assignmentRepository.findById(1)).willReturn(Optional.of(assignment));
+		// end of mock data
+
+		// then do an http get request for assignment 1
+		response = mvc.perform(MockMvcRequestBuilders.get("/assignment/1").accept(MediaType.APPLICATION_JSON))
+				.andReturn().getResponse();
+
+		// verify return data with entry for one student without no score
+		assertEquals(200, response.getStatus());
+
+		// verify that a save was NOT called on repository because student already has a
+		// grade
+		verify(assignmentRepository, times(0)).save(any());
+
+		// verify that returned data has non zero primary key
+		AssignmentDTO result = fromJsonString(response.getContentAsString(), AssignmentDTO.class);
+		// assignment id is 1
+		assertEquals(1, result.assignmentId);
+
+		result.assignmentName = "Test2";
+		// send updates to server
+		response = mvc
+				.perform(MockMvcRequestBuilders.put("/gradebook/1").accept(MediaType.APPLICATION_JSON)
+						.content(asJsonString(result)).contentType(MediaType.APPLICATION_JSON))
+				.andReturn().getResponse();
+
+		// verify that return status = OK (value 200)
+		assertEquals(200, response.getStatus());
+
+		// verify that repository save method was called
+		// AssignmentGrade must override equals method for this test for work !!!
+		Assignment updatedas = new Assignment();
+		updatedas.setId(1);
+		updatedas.setName("Assignment 2");
+		verify(assignmentRepository, times(1)).save(updatedas);
+	}
 	private static String asJsonString(final Object obj) {
 		try {
 
