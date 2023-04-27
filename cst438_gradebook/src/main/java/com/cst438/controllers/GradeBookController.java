@@ -137,6 +137,7 @@ public class GradeBookController {
 		Assignment userAssignment = new Assignment();
 		userAssignment.setId(assignment.assignmentId);
 		userAssignment.setName(assignment.assignmentName);
+		userAssignment.setNeedsGrading(1);
 		Date date = Date.valueOf(assignment.dueDate);
 		userAssignment.setDueDate(date);
 		System.out.printf("date=%s\n", date);
@@ -151,6 +152,7 @@ public class GradeBookController {
 			}
 			userAssignment.setCourse(courseId2.get());
 			assignmentRepository.save(userAssignment);
+			
 		}
 		else
 		{
